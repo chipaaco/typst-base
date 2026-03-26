@@ -19,6 +19,7 @@ while getopts ":cwp" opt; do
     p) mode="png" ;;
     *) usage; exit 1 ;;
   esac
+done
 
 shift $((OPTIND - 1))
 
