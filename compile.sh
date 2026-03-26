@@ -1,69 +1,70 @@
-#!/bin/bash
-# This script is intended for Ubuntu systems only
+#!/usr/bin/env bash
 
-if ! command -v typst >/dev/null 2>&1; then
-  echo "Error: 'typst' is not installed."
-  echo "You can install it with:"
-  echo "  sudo apt update && sudo apt install -y curl unzip"
-  echo "  curl -LO https://typst.app/releases/typst-x86_64-unknown-linux-musl.zip"
-  echo "  unzip typst-x86_64-unknown-linux-musl.zip"
-  echo "  sudo mv typst /usr/local/bin/typst"
+set -euo pipefail
+
+usage() {
+  echo "Usage: $0 [-c|-w|-p] <path-to-project-or-file>"
+  echo "  -c  compile to PDF"
+  echo "  -w  watch changes and compile to PDF"
+  echo "  -p  export to PNG"
+}
+
+mode=""
+target=""
+
+while getopts ":cwp" opt; do
+  case "$opt" in
+    c) mode="pdf" ;;
+    w) mode="watch" ;;
+    p) mode="png" ;;
+    *) usage; exit 1 ;;
+  esac
+
+shift $((OPTIND - 1))
+
+if [ "$#" -ne 1 ]; then
+  usage
   exit 1
 fi
 
-show_help() {
-  echo "Usage: $0 [options] [output-file]"
-  echo "Options:"
-  echo "  -h           Show this help message"
-  echo "  --pdf        Compile to PDF (default)"
-  echo "  --live-pdf   Compile continuously to PDF (watch mode)"
-  echo "  --png        Export only as PNG image"
-  echo "[output-file] Optional output file name; if omitted, uses input file and adjusts extension."
-  exit 0
-}
+target="$1"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-MODE="pdf"
-LIVE=0
-INPUT="file.typ"
-OUTPUT=""
-
-for arg in "$@"; do
-  case $arg in
-    -h)
-      show_help
-      ;;
-    --pdf)
-      MODE="pdf"
-      ;;
-    --live-pdf)
-      MODE="pdf"
-      LIVE=1
-      ;;
-    --png)
-      MODE="png"
-      ;;
-    *)
-      OUTPUT="$arg"
-      ;;
-  esac
-done
-
-BASENAME="${INPUT%.typ}"
-
-if [ -z "$OUTPUT" ]; then
-  if [ "$MODE" = "pdf" ]; then
-    OUTPUT="$BASENAME.pdf"
-  else
-    OUTPUT="$BASENAME.png"
-  fi
-fi
-
-if [ "$LIVE" -eq 1 ]; then
-  typst watch "$INPUT" "$OUTPUT"
+if [ "$target" = "." ]; then
+  project_dir="$(pwd)"
+elif [ -d "$target" ]; then
+  project_dir="$(cd "$target" && pwd)"
 else
-  if [ "$MODE" = "pdf" ]; then
-    typst compile "$INPUT" "$OUTPUT"
-  elif [ "$MODE" = "png" ]; then
-    typst compile "$INPUT" --png "$OUTPUT"
-  fi
+  project_dir="$(cd "$(dirname "$target")" && pwd)"
 fi
+
+if [ -d "$project_dir/src" ]; then
+  src_dir="$project_dir/src"
+elif [ -d "$project_dir" ] && [ -f "$project_dir/main.typ" ]; then
+  src_dir="$project_dir"
+else
+  src_dir="$project_dir/src"
+fi
+
+main_file="$src_dir/main.typ"
+outputs_dir="$project_dir/outputs"
+mkdir -p "$outputs_dir"
+
+pdf_out="$outputs_dir/generated.pdf"
+png_out="$outputs_dir/generated.png"
+
+case "$mode" in
+  pdf)
+    typst compile "$main_file" "$pdf_out"
+    ;;
+  watch)
+    typst watch "$main_file" "$pdf_out"
+    ;;
+  png)
+    typst compile "$main_file" "$png_out"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
