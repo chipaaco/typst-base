@@ -15,9 +15,9 @@ if [ ! -d "$organizer_path" ]; then
   mkdir -p "$organizer_path"
 fi
 
-random_name="project_$(tr -dc 'a-z0-9' </dev/urandom | head -c 8)"
+random_name="project_${RANDOM}${RANDOM}"
 while [ -e "$organizer_path/$random_name" ]; do
-  random_name="project_$(tr -dc 'a-z0-9' </dev/urandom | head -c 8)"
+  random_name="project_${RANDOM}${RANDOM}"
 done
 
 mkdir -p "$organizer_path/$random_name"
